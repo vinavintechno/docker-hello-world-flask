@@ -1,0 +1,52 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  imageName: 'image-$(Build.Repository.Name):$(Build.BuildId)'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@0
+      displayName: 'buildAndPush copy copy'
+      inputs:
+        azureSubscription: 'ServiceConnection-Azure Devops'
+        azureContainerRegistry: '{"loginServer":"avinacr.azurecr.io", "id" : "/subscriptions/1bc909d9-512d-44e7-a90d-0b07c70674d6/resourceGroups/rg-demo/providers/Microsoft.ContainerRegistry/registries/avinacr"}'
+        imageName: $(imageName)
+
+    - task: Docker@0
+      displayName: 'buildAndPush copy copy'
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'ServiceConnection-Azure Devops'
+        azureContainerRegistry: '{"loginServer":"avinacr.azurecr.io", "id" : "/subscriptions/1bc909d9-512d-44e7-a90d-0b07c70674d6/resourceGroups/rg-demo/providers/Microsoft.ContainerRegistry/registries/avinacr"}'
+        action: 'Push an image'
+        imageName: $(imageName)
+    - task: AzureWebAppContainer@1
+      inputs:
+        azureSubscription: 'ServiceConnection-Azure Devops'
+        appName: 'avin-docker-dev'
+        containers: 'avinacr.azurecr.io/$(imageName)'
+      condition:  eq(variables['Build.SourceBranch'], 'refs/heads/dev')
+    - task: AzureWebAppContainer@1
+      inputs:
+        azureSubscription: 'ServiceConnection-Azure Devops'
+        appName: 'avin-docker-dev'
+        containers: 'avinacr.azurecr.io/$(imageName)'
+      condition:  eq(variables['Build.SourceBranch'], 'refs/heads/qa')
