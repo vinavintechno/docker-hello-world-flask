@@ -1,0 +1,57 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- main
+- dev
+
+resources:
+- repo: self
+
+variables:
+  imageName: 'image-$(Build.Repository.Name):$(Build.SourceBranchName)-$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: Build image & Deploy
+  jobs:
+  - job: Build
+    displayName: Build & Deploy
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: Docker@0
+      displayName: 'Build an image'
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'ServiceConnection-Manual'
+        azureContainerRegistry: '{"loginServer":"avinacr.azurecr.io", "id" : "/subscriptions/1bc909d9-512d-44e7-a90d-0b07c70674d6/resourceGroups/rg-demo/providers/Microsoft.ContainerRegistry/registries/avinacr"}'
+        action: 'Build an image'
+        dockerFile: 'Dockerfile'
+        imageName: '$(imageName)'
+    - task: Docker@0
+      displayName: 'Push an image'
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'ServiceConnection-Manual'
+        azureContainerRegistry: '{"loginServer":"avinacr.azurecr.io", "id" : "/subscriptions/1bc909d9-512d-44e7-a90d-0b07c70674d6/resourceGroups/rg-demo/providers/Microsoft.ContainerRegistry/registries/avinacr"}'
+        action: 'Push an image'
+        imageName: '$(imageName)'
+    - task: AzureWebAppContainer@1
+      displayName: 'Deploy: avin-docker-dev'
+      inputs:
+        azureSubscription: 'ServiceConnection-Manual'
+        appName: 'avin-docker-dev'
+        containers: 'avinacr.azurecr.io/$(imageName)'
+      condition: eq(variables['Build.SourceBranchName'], 'dev')
+      
+    - task: AzureWebAppContainer@1
+      displayName: 'Deploy: avin-docker-qa'
+      inputs:
+        azureSubscription: 'ServiceConnection-Manual'
+        appName: 'avin-docker-qa'
+        containers: 'avinacr.azurecr.io/$(imageName)'
+      condition: eq(variables['Build.SourceBranchName'], 'main')
+
+       
